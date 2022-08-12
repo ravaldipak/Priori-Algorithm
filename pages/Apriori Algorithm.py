@@ -21,7 +21,7 @@ class AprioriAlgo:
         # Show dataFrame
         agree = st.checkbox(title)
         if agree:
-            st.dataframe(dataframe)
+            st.table(dataframe)
 
 
     # Load Dataset 
@@ -86,8 +86,99 @@ class AprioriAlgo:
         sup = pd.DataFrame(((dataframe.sum() / dataframe.shape[0]) * 100), columns = ["Support"]).sort_values("Support", ascending = False)
         return sup
 
+
+    # ---------------------------------------------------------Code from Here--------------------------------------------------------
+
+    def aprioriFun(self,trans_data,supp=3, con=0.5):
+        freq = pd.DataFrame()
+        df = self.count_item(trans_data)
+        self.data_show(title="Show Count Item",dataframe=df)
+        i = 1;
+        while(len(df) != 0):
+            df = self.prune(df, supp)
+    
+            if len(df) > 1 or (len(df) == 1 and int(df.supp_count >= supp)):
+                freq = df
+            
+            itemsets = self.join(df.item_sets)
+        
+            if(itemsets is None):
+                return freq
+        
+            df = self.count_itemset(trans_data, itemsets)
+            self.data_show(title="Show ItemSet {0}".format(i),dataframe=df)
+            i = i + 1
+        return df
+
+    def prune(self,data,supp):    
+        df = data[data.supp_count >= supp] 
+        return df
+
+    def count_itemset(self,transaction_df, itemsets):    
+        count_item = {}
+        for item_set in itemsets:
+            set_A = set(item_set)
+            for row in trans_df:
+                set_B = set(row)
+            
+                if set_B.intersection(set_A) == set_A: 
+                    if item_set in count_item.keys():
+                        count_item[item_set] += 1
+                    
+                    else:
+                        count_item[item_set] = 1
+                    
+        data = pd.DataFrame()
+        data['item_sets'] = count_item.keys()
+        data['supp_count'] = count_item.values()
+    
+        return data
+
+    def count_item(self,trans_items):    
+        count_ind_item = {}
+        for row in trans_items:
+            for i in range(len(row)):
+                if row[i] in count_ind_item.keys():
+                    count_ind_item[row[i]] += 1
+                else:
+                    count_ind_item[row[i]] = 1
+        
+        data = pd.DataFrame()
+        data['item_sets'] = count_ind_item.keys()
+        data['supp_count'] = count_ind_item.values()
+        data = data.sort_values('item_sets')
+        return data
+
+    def join(self,list_of_items):
+        itemsets = []
+        i = 1
+        for entry in list_of_items:
+            proceding_items = list_of_items[i:]
+            for item in proceding_items:
+                if(type(item) is str):
+                    if entry != item:
+                        tuples = (entry, item)
+                        itemsets.append(tuples)
+                else:
+                    if entry[0:-1] == item[0:-1]:
+                        tuples = entry+item[1:]
+                        itemsets.append(tuples)
+            i = i+1
+        if(len(itemsets) == 0):
+            return None
+        return itemsets
+
 apriori = AprioriAlgo()
-option = st.selectbox('select CSV',('Select','GroceryStoreDataSet'))
+option = st.selectbox('select CSV V1',('Select','GroceryStoreDataSet'))
+if(option != "Select"):
+    df = pd.read_csv("./DB/"+option+".csv", names=['Products'])
+    trans_df = df.Products.str.split(',')
+    freq_item_sets = apriori.aprioriFun(trans_df, 4)
+    apriori.data_show(title="Show Final Output",dataframe=freq_item_sets)
+
+st.markdown("""---""")
+
+option = st.selectbox('select CSV V2',('Select','GroceryStoreDataSet'))
 if(option != "Select"):
     apriori.load_data_set(datasetName=option)
     apriori.working_data()
